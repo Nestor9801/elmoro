@@ -1,5 +1,6 @@
 import json
 import requests
+import pandas as pd
 from config import API_USER, API_PASSWORD
 
 STATE_FILE = "playwright_state.json"
@@ -25,6 +26,27 @@ def build_session_from_state(state):
 
     return session
 
+def fetch_raw_response(axis, session):
+    headers = {
+        "Accept": "*/*",
+        "User-Agent": "Mozilla/5.0",
+        "X-Requested-With": "XMLHttpRequest",
+        "Referer": HOME_URL,
+        "Origin": "https://eos.zetus.mx",
+    }
+
+    response = session.post(
+        DATA_URL,
+        headers=headers,
+        data={"axis": axis},
+        auth=(API_USER, API_PASSWORD),
+        timeout=60,
+    )
+
+    print(f"AXIS: {axis} | STATUS: {response.status_code}")
+
+    response.raise_for_status()
+    return response.json()
 
 def fetch_records(axis, session):
     headers = {
@@ -65,14 +87,3 @@ def fetch_records(axis, session):
     return msg
 
 
-if __name__ == "__main__":
-    axis = "2026-04-01|2026-04-08|1"
-
-    state = load_state()
-    session = build_session_from_state(state)
-    records = fetch_records(axis, session)
-
-    print(f"Registros obtenidos: {len(records)}")
-    if records:
-        print("Primer registro:")
-        print(records[0])
