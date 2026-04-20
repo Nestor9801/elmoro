@@ -3,6 +3,7 @@ from bs4 import BeautifulSoup
 from urllib.parse import urljoin
 from config import API_USER, API_PASSWORD
 
+
 USER = API_USER
 PASSWORD = API_PASSWORD
 
