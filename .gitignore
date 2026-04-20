@@ -1,0 +1,19 @@
+# entorno virtual
+.venv/
+venv/
+
+# cache python
+__pycache__/
+*.pyc
+playwright_state.json
+
+# archivos sensibles
+config.py
+config.local.py
+
+# logs
+*.log
+
+# sistema
+.DS_Store
+Thumbs.db
