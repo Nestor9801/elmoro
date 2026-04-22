@@ -3,98 +3,81 @@ from psycopg2.extras import execute_batch
 from config import PG_CONFIG
 
 
-INSERT_SQL = """
-INSERT INTO consumos (
-    id_c, folio_c, nom_c, nom_ms_c, fecha_c, hora_c,
-    fecha_a_c, hora_a_c, num_cli_c, stot_c, i_c, tot_c,
-    grat_c, fac_c, nom_trm, alias_usu, abr_suc, nom_cli,
-    btn_detalle, efe, tar, fact, duracion
-)
-VALUES (
-    %(id_c)s, %(folio_c)s, %(nom_c)s, %(nom_ms_c)s, %(fecha_c)s, %(hora_c)s,
-    %(fecha_a_c)s, %(hora_a_c)s, %(num_cli_c)s, %(stot_c)s, %(i_c)s, %(tot_c)s,
-    %(grat_c)s, %(fac_c)s, %(nom_trm)s, %(alias_usu)s, %(abr_suc)s, %(nom_cli)s,
-    %(btn_detalle)s, %(efe)s, %(tar)s, %(fact)s, %(duracion)s
-)
-ON CONFLICT (id_c) DO UPDATE SET
-    folio_c = EXCLUDED.folio_c,
-    nom_c = EXCLUDED.nom_c,
-    nom_ms_c = EXCLUDED.nom_ms_c,
-    fecha_c = EXCLUDED.fecha_c,
-    hora_c = EXCLUDED.hora_c,
-    fecha_a_c = EXCLUDED.fecha_a_c,
-    hora_a_c = EXCLUDED.hora_a_c,
-    num_cli_c = EXCLUDED.num_cli_c,
-    stot_c = EXCLUDED.stot_c,
-    i_c = EXCLUDED.i_c,
-    tot_c = EXCLUDED.tot_c,
-    grat_c = EXCLUDED.grat_c,
-    fac_c = EXCLUDED.fac_c,
-    nom_trm = EXCLUDED.nom_trm,
-    alias_usu = EXCLUDED.alias_usu,
-    abr_suc = EXCLUDED.abr_suc,
-    nom_cli = EXCLUDED.nom_cli,
-    btn_detalle = EXCLUDED.btn_detalle,
-    efe = EXCLUDED.efe,
-    tar = EXCLUDED.tar,
-    fact = EXCLUDED.fact,
-    duracion = EXCLUDED.duracion
-"""
-
-
 def get_connection():
-    conn = psycopg2.connect(**PG_CONFIG)
-    conn.set_client_encoding("LATIN1")
-    print("Conexion creada:", conn)
-    return conn
-
-def normalize_record(row: dict) -> dict:
-    def clean(value):
-        return None if value == "" else value
-
-    def to_int(value):
-        value = clean(value)
-        return int(value) if value is not None else None
-
-    def to_float(value):
-        value = clean(value)
-        return float(value) if value is not None else None
-
-    return {
-        "id_c": clean(row.get("id_c")),
-        "folio_c": to_int(row.get("folio_c")),
-        "nom_c": clean(row.get("nom_c")),
-        "nom_ms_c": clean(row.get("nom_ms_c")),
-        "fecha_c": clean(row.get("fecha_c")),
-        "hora_c": clean(row.get("hora_c")),
-        "fecha_a_c": clean(row.get("fecha_a_c")),
-        "hora_a_c": clean(row.get("hora_a_c")),
-        "num_cli_c": to_int(row.get("num_cli_c")),
-        "stot_c": to_float(row.get("stot_c")),
-        "i_c": to_float(row.get("i_c")),
-        "tot_c": to_float(row.get("tot_c")),
-        "grat_c": to_float(row.get("grat_c")),
-        "fac_c": to_int(row.get("fac_c")),
-        "nom_trm": clean(row.get("nom_trm")),
-        "alias_usu": clean(row.get("alias_usu")),
-        "abr_suc": clean(row.get("abr_suc")),
-        "nom_cli": clean(row.get("nom_cli")),
-        "btn_detalle": clean(row.get("btn_detalle")),
-        "efe": to_float(row.get("efe")),
-        "tar": to_float(row.get("tar")),
-        "fact": to_float(row.get("fact")),
-        "duracion": clean(row.get("duracion")),
-    }
+    return psycopg2.connect(**PG_CONFIG)
 
 
-def save_consumos(records: list[dict]) -> int:
-    rows = [normalize_record(r) for r in records if r.get("id_c")]
+def get_table_columns(conn, table_name):
+    sql = """
+    SELECT column_name
+    FROM information_schema.columns
+    WHERE table_schema = 'public'
+      AND table_name = %s
+    ORDER BY ordinal_position
+    """
+    with conn.cursor() as cur:
+        cur.execute(sql, (table_name,))
+        return [row[0] for row in cur.fetchall()]
 
+
+def clean_value(value):
+    if value in ("", "0000-00-00"):
+        return None
+    return value
+
+
+def normalize_rows_for_table(rows, table_columns, branch_id=None):
+    normalized = []
+
+    for row in rows:
+        new_row = {}
+
+        for col in table_columns:
+            if col == "branch_id":
+                new_row[col] = branch_id
+            elif col == "loaded_at":
+                continue
+            else:
+                new_row[col] = clean_value(row.get(col))
+
+        normalized.append(new_row)
+
+    return normalized
+
+
+def insert_generic(table_name, rows, conflict_key=None, branch_id=None):
     if not rows:
         return 0
 
     with get_connection() as conn:
-        with conn.cursor() as cur:
-            execute_batch(cur, INSERT_SQL, rows, page_size=500)
+        table_columns = get_table_columns(conn, table_name)
 
-    return len(rows)
+        insertable_columns = [c for c in table_columns if c not in ("loaded_at", "id")]
+        normalized_rows = normalize_rows_for_table(rows, insertable_columns, branch_id=branch_id)
+
+        cols_sql = ", ".join(insertable_columns)
+        vals_sql = ", ".join([f"%({c})s" for c in insertable_columns])
+
+        if conflict_key:
+            update_cols = [c for c in insertable_columns if c != conflict_key]
+
+            update_sql = ", ".join([
+                f"{c} = EXCLUDED.{c}" for c in update_cols
+            ])
+
+            sql = f"""
+            INSERT INTO {table_name} ({cols_sql})
+            VALUES ({vals_sql})
+            ON CONFLICT ({conflict_key}) DO UPDATE SET
+            {update_sql}
+            """
+        else:
+            sql = f"""
+            INSERT INTO {table_name} ({cols_sql})
+            VALUES ({vals_sql})
+            """
+
+        with conn.cursor() as cur:
+            execute_batch(cur, sql, normalized_rows, page_size=500)
+
+    return len(normalized_rows)

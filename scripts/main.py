@@ -1,68 +1,108 @@
 from datetime import datetime
-import pandas as pd
+import traceback
 
-from api_requests import load_state, build_session_from_state, fetch_raw_response
-from preview import response_to_dataframe, preview_dataframe
-from db import save_consumos
-
-
-def build_axis_today(sucursal_id: int) -> str:
-    hoy = datetime.now().strftime("%Y-%m-%d")
-    return f"{hoy}|{hoy}|{sucursal_id}"
+from auth_playwright import login_and_save_state
+from api_requests import load_state, build_session_from_state, fetch_endpoint, extract_msg
+from db import insert_generic
+from endpoints import ENDPOINTS
+from param_builders import build_axis_all, build_movimientos_payload, build_movimientos_payload_yesterday
 
 
-def fetch_all_sucursales_today(session, id_start=1, id_end=20) -> pd.DataFrame:
-    dfs = []
+def log(msg):
+    print(f"[{datetime.now()}] {msg}")
 
-    for sucursal_id in range(id_start, id_end + 1):
-        try:
-            axis = build_axis_today(sucursal_id)
-            raw_response = fetch_raw_response(axis, session)
-            df = response_to_dataframe(raw_response)
 
-            if df.empty:
-                print(f"ID {sucursal_id}: sin datos")
-                continue
+def get_valid_session():
+    try:
+        state = load_state()
+        return build_session_from_state(state)
+    except Exception:
+        log("Sesion no valida. Regenerando login...")
+        login_and_save_state(headless=True)
+        state = load_state()
+        return build_session_from_state(state)
 
-            df["id_sucursal_axis"] = sucursal_id
-            dfs.append(df)
 
-            abr = df["abr_suc"].dropna().unique().tolist() if "abr_suc" in df.columns else []
-            print(f"ID {sucursal_id}: {len(df)} filas | abr_suc={abr}")
+def process_axis_endpoint(endpoint, session):
+    payload = build_axis_all()
 
-        except Exception as e:
-            print(f"ID {sucursal_id}: error -> {e}")
+    response_json = fetch_endpoint(endpoint["url"], payload, session)
+    rows = extract_msg(response_json)
 
-    if not dfs:
-        return pd.DataFrame()
+    if not rows:
+        log(f"{endpoint['name']}: sin datos")
+        return
 
-    return pd.concat(dfs, ignore_index=True)
+    inserted = insert_generic(
+        table_name=endpoint["table"],
+        rows=rows,
+        conflict_key=endpoint.get("conflict_key"),
+        branch_id=None,
+    )
+
+    log(f"{endpoint['name']}: {inserted} registros")
+
+
+def process_movimientos(endpoint, session):
+    payload_s = build_movimientos_payload_yesterday("S")
+    payload_e = build_movimientos_payload_yesterday("E")
+
+    response_s = fetch_endpoint(endpoint["url"], payload_s, session)
+    rows_s = extract_msg(response_s)
+
+    response_e = fetch_endpoint(endpoint["url"], payload_e, session)
+    rows_e = extract_msg(response_e)
+
+    for row in rows_s:
+        row["tipo_mov_request"] = "S"
+
+    for row in rows_e:
+        row["tipo_mov_request"] = "E"
+
+    rows = rows_s + rows_e
+
+    if not rows:
+        log(f"{endpoint['name']}: sin datos")
+        return
+
+    inserted = insert_generic(
+        table_name=endpoint["table"],
+        rows=rows,
+        conflict_key=None,
+        branch_id=None,
+    )
+
+    log(f"{endpoint['name']}: {inserted} registros")
 
 
 def main():
-    state = load_state()
-    session = build_session_from_state(state)
+    log("Inicio ETL")
 
-    # Ajusta el rango si sospechas más sucursales
-    df_all = fetch_all_sucursales_today(session, id_start=1, id_end=20)
+    try:
+        session = get_valid_session()
 
-    if df_all.empty:
-        print("No se encontraron datos para hoy.")
-        return
+        for endpoint in ENDPOINTS:
+            log(f"Procesando: {endpoint['name']}")
 
-    print("\n=== PREVIEW GENERAL ===")
-    preview_dataframe(df_all, n=10)
+            try:
+                if endpoint["type"] == "axis_all":
+                    process_axis_endpoint(endpoint, session)
 
-    print("\n=== SUCURSALES ENCONTRADAS ===")
-    if "abr_suc" in df_all.columns and "id_sucursal_axis" in df_all.columns:
-        print(
-            df_all[["id_sucursal_axis", "abr_suc"]]
-            .drop_duplicates()
-            .sort_values(["id_sucursal_axis", "abr_suc"])
-        )
+                elif endpoint["type"] == "movimientos_all":
+                    process_movimientos(endpoint, session)
 
-    inserted = save_consumos(df_all.to_dict(orient="records"))
-    print(f"\nRegistros procesados en PostgreSQL: {inserted}")
+                else:
+                    log(f"Tipo no soportado: {endpoint['type']}")
+
+            except Exception as e:
+                log(f"ERROR en {endpoint['name']}: {e}")
+                traceback.print_exc()
+
+    except Exception as e:
+        log(f"ERROR CRITICO: {e}")
+        traceback.print_exc()
+
+    log("Fin ETL")
 
 
 if __name__ == "__main__":

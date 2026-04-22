@@ -1,10 +1,8 @@
 import json
 import requests
-import pandas as pd
 from config import API_USER, API_PASSWORD
 
 STATE_FILE = "playwright_state.json"
-DATA_URL = "https://eos.zetus.mx/elmoro/ventas@tabla_cuentas&axis="
 HOME_URL = "https://eos.zetus.mx/elmoro/"
 
 
@@ -26,7 +24,8 @@ def build_session_from_state(state):
 
     return session
 
-def fetch_raw_response(axis, session):
+
+def fetch_endpoint(url, payload, session):
     headers = {
         "Accept": "*/*",
         "User-Agent": "Mozilla/5.0",
@@ -36,54 +35,28 @@ def fetch_raw_response(axis, session):
     }
 
     response = session.post(
-        DATA_URL,
+        url,
         headers=headers,
-        data={"axis": axis},
+        data=payload,
         auth=(API_USER, API_PASSWORD),
-        timeout=60,
+        timeout=90,
     )
 
-    print(f"AXIS: {axis} | STATUS: {response.status_code}")
-
+    print(f"URL: {url} | PAYLOAD: {payload} | STATUS: {response.status_code}")
     response.raise_for_status()
     return response.json()
 
-def fetch_records(axis, session):
-    headers = {
-        "Accept": "*/*",
-        "User-Agent": "Mozilla/5.0",
-        "X-Requested-With": "XMLHttpRequest",
-        "Referer": HOME_URL,
-        "Origin": "https://eos.zetus.mx",
-    }
 
-    response = session.post(
-        DATA_URL,
-        headers=headers,
-        data={"axis": axis},
-        auth=(API_USER, API_PASSWORD),
-        timeout=60,
-    )
-
-    print("STATUS:", response.status_code)
-    print("CONTENT-TYPE:", response.headers.get("Content-Type"))
-    print("BODY:", response.text[:500])
-
-    response.raise_for_status()
-
-    data = response.json()
-
-    if "MSG" not in data:
+def extract_msg(response_json):
+    if "MSG" not in response_json:
         raise ValueError("La respuesta no contiene 'MSG'")
 
-    msg = data["MSG"]
+    msg = response_json["MSG"]
 
     if isinstance(msg, str):
         msg = json.loads(msg)
 
     if not isinstance(msg, list):
-        raise ValueError(f"'MSG' no es lista. Tipo recibido: {type(msg)}")
+        raise ValueError(f"'MSG' no es una lista. Tipo recibido: {type(msg)}")
 
     return msg
-
-
