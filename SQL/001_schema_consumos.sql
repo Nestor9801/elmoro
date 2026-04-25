@@ -153,3 +153,122 @@ CREATE INDEX idx_cat_art_super
 
 CREATE INDEX idx_cat_art_status
     ON catalogo_articulos(stat_art_c);
+
+    DROP TABLE IF EXISTS catalogo_articulos_detalle;
+
+CREATE TABLE catalogo_articulos_detalle (
+    id_art                  INTEGER PRIMARY KEY,
+    nom_art                 VARCHAR(200),
+    descrip_art             TEXT,
+
+    cat_art                 INTEGER,
+    nom_art_c               VARCHAR(150),
+
+    cod_art                 VARCHAR(80),
+    cod_art2                VARCHAR(80),
+    sku_art                 VARCHAR(80),
+    id_externo_art          VARCHAR(100),
+    ClaveProdServ_art       VARCHAR(30),
+
+    tipo_art                VARCHAR(10),
+    stat_art                INTEGER,
+    ord_art                 INTEGER,
+    prior_ord_art           INTEGER,
+
+    cant_art                NUMERIC(14,7),
+    precio_art              NUMERIC(14,7),
+    util_art                NUMERIC(14,7),
+    pesokg_cu_art           NUMERIC(14,3),
+
+    med_min_art             INTEGER,
+    nom_med                 VARCHAR(80),
+
+    list_prec_art           INTEGER,
+    rango_cant_list_prec_art TEXT,
+    perm_modif_prec_art     INTEGER,
+
+    es_inv_art              INTEGER,
+    es_peligroso_art        INTEGER,
+    exent_imp_art           INTEGER,
+    usa_sub_art             INTEGER,
+    v_b_mos_nombr_art       INTEGER,
+
+    familia_art             VARCHAR(120),
+
+    imp_tip_art             INTEGER,
+    imp2_tip_art            INTEGER,
+    nom_tip_impr            VARCHAR(100),
+    nom_tip_impr2           VARCHAR(100),
+    nom_tip_vid             VARCHAR(100),
+    nom_tip_vid2            VARCHAR(100),
+
+    vid_tip_art             INTEGER,
+    vid2_tip_art            INTEGER,
+
+    p_i_art                 NUMERIC(14,6),
+    p_i_v_art               NUMERIC(14,6),
+    p_i2_art                NUMERIC(14,6),
+    p_i2_v_art              NUMERIC(14,6),
+    p_i3_art                NUMERIC(14,6),
+    p_i3_v_art              NUMERIC(14,6),
+    p_i4_art                NUMERIC(14,6),
+    p_i4_v_art              NUMERIC(14,6),
+
+    fprop_i_v_art           NUMERIC(14,6),
+    fprop_i2_v_art          NUMERIC(14,6),
+
+    iva                     VARCHAR(50),
+    ieps                    VARCHAR(50),
+
+    v_b_tam_art             INTEGER,
+
+    loaded_at               TIMESTAMP DEFAULT NOW()
+);
+
+
+
+CREATE TABLE catalogo_unidades_medida (
+    id_med SERIAL PRIMARY KEY,
+    nom_med VARCHAR(100) NOT NULL,
+    abr_med VARCHAR(20),
+    stat_med BOOLEAN DEFAULT TRUE,
+    claveUnidad_med VARCHAR(10),
+    cant INTEGER DEFAULT 0,
+    
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+
+CREATE TABLE sucursales_metricas (
+    id_sucursal INT PRIMARY KEY,
+    label VARCHAR(150) NOT NULL,
+    
+    num_cuentas INT,
+    num_cuentas_app INT,
+    num_clientes INT,
+    
+    venta_fisica NUMERIC(12,2),
+    data NUMERIC(12,2),
+    
+    cliente_promedio NUMERIC(10,2),
+    porc NUMERIC(10,6),
+    cuenta_promedio NUMERIC(10,2),
+    
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+
+CREATE TABLE IF NOT EXISTS etl_checkpoint (
+    id BIGSERIAL PRIMARY KEY,
+    endpoint_name TEXT NOT NULL,
+    fecha DATE NOT NULL,
+    status TEXT NOT NULL,
+    rows_api INTEGER DEFAULT 0,
+    rows_db INTEGER DEFAULT 0,
+    error_message TEXT,
+    started_at TIMESTAMP DEFAULT NOW(),
+    finished_at TIMESTAMP,
+    UNIQUE(endpoint_name, fecha)
+);
