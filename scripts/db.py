@@ -21,7 +21,7 @@ def get_table_columns(conn, table_name):
 
 
 def clean_value(value):
-    if value in ("", "0000-00-00"):
+    if value in ("", "0000-00-00", None):
         return None
     return value
 
@@ -34,8 +34,8 @@ def normalize_rows_for_table(rows, table_columns, branch_id=None):
 
         for col in table_columns:
             if col == "branch_id":
-                new_row[col] = branch_id
-            elif col == "loaded_at":
+                new_row[col] = row.get("branch_id", branch_id)
+            elif col in ("loaded_at", "id"):
                 continue
             else:
                 new_row[col] = clean_value(row.get(col))
@@ -45,20 +45,28 @@ def normalize_rows_for_table(rows, table_columns, branch_id=None):
     return normalized
 
 
-def insert_generic(table_name, rows, conflict_key=None, branch_id=None):
+def insert_generic(table_name, rows, conflict_key=None, branch_id=None, load_mode="append_upsert"):
     if not rows:
         return 0
 
     with get_connection() as conn:
         table_columns = get_table_columns(conn, table_name)
-
         insertable_columns = [c for c in table_columns if c not in ("loaded_at", "id")]
         normalized_rows = normalize_rows_for_table(rows, insertable_columns, branch_id=branch_id)
 
         cols_sql = ", ".join(insertable_columns)
         vals_sql = ", ".join([f"%({c})s" for c in insertable_columns])
 
-        if conflict_key:
+        if load_mode == "catalog_refresh":
+            with conn.cursor() as cur:
+                cur.execute(f"DELETE FROM {table_name}")
+
+            sql = f"""
+            INSERT INTO {table_name} ({cols_sql})
+            VALUES ({vals_sql})
+            """
+
+        elif load_mode == "append_upsert" and conflict_key:
             update_cols = [c for c in insertable_columns if c != conflict_key]
 
             update_sql = ", ".join([
@@ -71,6 +79,7 @@ def insert_generic(table_name, rows, conflict_key=None, branch_id=None):
             ON CONFLICT ({conflict_key}) DO UPDATE SET
             {update_sql}
             """
+
         else:
             sql = f"""
             INSERT INTO {table_name} ({cols_sql})
@@ -81,3 +90,71 @@ def insert_generic(table_name, rows, conflict_key=None, branch_id=None):
             execute_batch(cur, sql, normalized_rows, page_size=500)
 
     return len(normalized_rows)
+
+def checkpoint_success(endpoint_name, fecha):
+    sql = """
+    SELECT EXISTS (
+        SELECT 1
+        FROM etl_checkpoint
+        WHERE endpoint_name = %s
+          AND fecha = %s
+          AND status = 'SUCCESS'
+          AND rows_api > 0
+          AND rows_db > 0
+    )
+    """
+
+    with get_connection() as conn:
+        with conn.cursor() as cur:
+            cur.execute(sql, (endpoint_name, fecha))
+            return cur.fetchone()[0]
+
+
+def checkpoint_start(endpoint_name, fecha):
+    sql = """
+    INSERT INTO etl_checkpoint (
+        endpoint_name, fecha, status, started_at
+    )
+    VALUES (%s, %s, 'RUNNING', NOW())
+    ON CONFLICT (endpoint_name, fecha) DO UPDATE SET
+        status = 'RUNNING',
+        started_at = NOW(),
+        finished_at = NULL,
+        error_message = NULL
+    """
+
+    with get_connection() as conn:
+        with conn.cursor() as cur:
+            cur.execute(sql, (endpoint_name, fecha))
+
+
+def checkpoint_finish(endpoint_name, fecha, rows_api, rows_db):
+    sql = """
+    UPDATE etl_checkpoint
+    SET status = 'SUCCESS',
+        rows_api = %s,
+        rows_db = %s,
+        finished_at = NOW(),
+        error_message = NULL
+    WHERE endpoint_name = %s
+      AND fecha = %s
+    """
+
+    with get_connection() as conn:
+        with conn.cursor() as cur:
+            cur.execute(sql, (rows_api, rows_db, endpoint_name, fecha))
+
+
+def checkpoint_fail(endpoint_name, fecha, error_message):
+    sql = """
+    UPDATE etl_checkpoint
+    SET status = 'FAILED',
+        finished_at = NOW(),
+        error_message = %s
+    WHERE endpoint_name = %s
+      AND fecha = %s
+    """
+
+    with get_connection() as conn:
+        with conn.cursor() as cur:
+            cur.execute(sql, (str(error_message), endpoint_name, fecha))

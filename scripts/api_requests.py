@@ -48,15 +48,24 @@ def fetch_endpoint(url, payload, session):
 
 
 def extract_msg(response_json):
-    if "MSG" not in response_json:
-        raise ValueError("La respuesta no contiene 'MSG'")
+    if not response_json:
+        return []
 
-    msg = response_json["MSG"]
+    msg = response_json.get("MSG")
 
-    if isinstance(msg, str):
-        msg = json.loads(msg)
+    if msg is None:
+        return []
 
-    if not isinstance(msg, list):
-        raise ValueError(f"'MSG' no es una lista. Tipo recibido: {type(msg)}")
+    if isinstance(msg, list):
+        return msg
 
-    return msg
+    if isinstance(msg, dict):
+        rows = []
+        for key, value in msg.items():
+            if isinstance(value, dict):
+                row = value.copy()
+                row["id_sucursal"] = int(key) if str(key).isdigit() else key
+                rows.append(row)
+        return rows
+
+    raise ValueError(f"'MSG' tiene un formato no soportado. Tipo recibido: {type(msg)}")
