@@ -12,7 +12,7 @@ def main():
 
     parser.add_argument(
         "--mode",
-        choices=["daily", "weekly", "biweekly", "monthly", "custom", "catalogs"],
+        choices=["daily_yesterday","daily", "weekly", "biweekly", "monthly", "custom", "catalogs"],
         required=True,
     )
 

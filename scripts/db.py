@@ -91,12 +91,13 @@ def insert_generic(table_name, rows, conflict_key=None, branch_id=None, load_mod
 
     return len(normalized_rows)
 
-def checkpoint_success(endpoint_name, fecha):
+def checkpoint_success(endpoint_name, table_name, fecha):
     sql = """
     SELECT EXISTS (
         SELECT 1
         FROM etl_checkpoint
         WHERE endpoint_name = %s
+          AND table_name = %s
           AND fecha = %s
           AND status = 'SUCCESS'
           AND rows_api > 0
@@ -106,17 +107,17 @@ def checkpoint_success(endpoint_name, fecha):
 
     with get_connection() as conn:
         with conn.cursor() as cur:
-            cur.execute(sql, (endpoint_name, fecha))
+            cur.execute(sql, (endpoint_name, table_name, fecha))
             return cur.fetchone()[0]
 
 
-def checkpoint_start(endpoint_name, fecha):
+def checkpoint_start(endpoint_name, table_name, fecha):
     sql = """
     INSERT INTO etl_checkpoint (
-        endpoint_name, fecha, status, started_at
+        endpoint_name, table_name, fecha, status, started_at
     )
-    VALUES (%s, %s, 'RUNNING', NOW())
-    ON CONFLICT (endpoint_name, fecha) DO UPDATE SET
+    VALUES (%s, %s, %s, 'RUNNING', NOW())
+    ON CONFLICT (endpoint_name, table_name, fecha) DO UPDATE SET
         status = 'RUNNING',
         started_at = NOW(),
         finished_at = NULL,
@@ -125,10 +126,10 @@ def checkpoint_start(endpoint_name, fecha):
 
     with get_connection() as conn:
         with conn.cursor() as cur:
-            cur.execute(sql, (endpoint_name, fecha))
+            cur.execute(sql, (endpoint_name, table_name, fecha))
 
 
-def checkpoint_finish(endpoint_name, fecha, rows_api, rows_db):
+def checkpoint_finish(endpoint_name, table_name, fecha, rows_api, rows_db):
     sql = """
     UPDATE etl_checkpoint
     SET status = 'SUCCESS',
@@ -137,24 +138,26 @@ def checkpoint_finish(endpoint_name, fecha, rows_api, rows_db):
         finished_at = NOW(),
         error_message = NULL
     WHERE endpoint_name = %s
+      AND table_name = %s
       AND fecha = %s
     """
 
     with get_connection() as conn:
         with conn.cursor() as cur:
-            cur.execute(sql, (rows_api, rows_db, endpoint_name, fecha))
+            cur.execute(sql, (rows_api, rows_db, endpoint_name, table_name, fecha))
 
 
-def checkpoint_fail(endpoint_name, fecha, error_message):
+def checkpoint_fail(endpoint_name, table_name, fecha, error_message):
     sql = """
     UPDATE etl_checkpoint
     SET status = 'FAILED',
         finished_at = NOW(),
         error_message = %s
     WHERE endpoint_name = %s
+      AND table_name = %s
       AND fecha = %s
     """
 
     with get_connection() as conn:
         with conn.cursor() as cur:
-            cur.execute(sql, (str(error_message), endpoint_name, fecha))
+            cur.execute(sql, (str(error_message), endpoint_name, table_name, fecha))

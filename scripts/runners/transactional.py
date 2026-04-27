@@ -33,13 +33,14 @@ def process_tabla_cuentas_range(endpoint, session, fecha_inicio, fecha_fin):
 
     for fecha in iter_days(fecha_inicio, fecha_fin):
         endpoint_name = endpoint["name"]
+        table_name = endpoint["table"]
 
         try:
-            if checkpoint_success(endpoint_name, fecha):
-                log(f"{endpoint_name} | fecha {fecha} | ya procesada, se omite")
+            if checkpoint_success(endpoint_name, table_name, fecha):
+                log(f"{endpoint_name} | {table_name} | fecha {fecha} | ya procesada, se omite")
                 continue
 
-            checkpoint_start(endpoint_name, fecha)
+            checkpoint_start(endpoint_name, table_name, fecha)
 
             payload = build_tabla_cuentas_payload_for_day(fecha)
             response_json = fetch_endpoint(endpoint["url"], payload, session)
@@ -69,12 +70,12 @@ def process_tabla_cuentas_range(endpoint, session, fecha_inicio, fecha_fin):
                     f"API devolvio {rows_api} registros pero DB inserto 0 para {endpoint_name} en fecha {fecha}"
                 )
 
-            checkpoint_finish(endpoint_name, fecha, rows_api, rows_db)
+            checkpoint_finish(endpoint_name, table_name, fecha, rows_api, rows_db)
 
             log(f"{endpoint_name} | fecha {fecha} | DB rows: {rows_db}")
 
         except Exception as e:
-            checkpoint_fail(endpoint_name, fecha, e)
+            checkpoint_fail(endpoint_name, table_name, fecha, e)
             log(f"ERROR {endpoint_name} | fecha {fecha}: {e}")
             traceback.print_exc()
 
