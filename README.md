@@ -528,7 +528,7 @@ python auth_playwright.py
 
 ---
 
-## ⚡ Automatización (Opcional)
+## ⚡ Automatización
 
 Puedes usar los `.bat` que ya tienes:
 
