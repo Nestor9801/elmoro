@@ -18,6 +18,9 @@ Este proyecto permite:
 
 ## 🏗️ Arquitectura
 
+<img width="1536" height="1024" alt="image" src="https://github.com/user-attachments/assets/36498ff0-594e-49f4-a080-be17ce636fd0" />
+
+
 ```mermaid
 flowchart TD
     A[Playwright Login] --> B[Cookies / Session]
