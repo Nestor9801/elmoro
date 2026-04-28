@@ -396,6 +396,10 @@ SQL/001_schema_consumos.sql
 Este paso es clave (solo la primera vez o cuando expire sesión):
 
 ```bash
+ejecutar run_auth_playwright.bat
+```
+
+```bash
 python auth_playwright.py
 ```
 
