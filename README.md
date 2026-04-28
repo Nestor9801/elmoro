@@ -1,6 +1,6 @@
 # 🍩 Plataforma de datos El Moro
 
-> Plataforma de datos y pipeline ETL para extracción automatizada de datos desde **EOS Zetus (Elmoro)** hacia **PostgreSQL**, utilizando autenticación vía navegador y consumo de endpoints privados.
+> Plataforma de datos y pipeline ETL para extracción automatizada de datos desde **POS Zetus (El moro)** hacia **PostgreSQL**, utilizando autenticación vía navegador y consumo de endpoints privados.
 
 ---
 
