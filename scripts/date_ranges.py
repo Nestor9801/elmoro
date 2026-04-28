@@ -16,12 +16,17 @@ def iter_days(fecha_inicio, fecha_fin):
         current += timedelta(days=1)
 
 
+
 def get_range(mode):
     today = date.today()
 
     if mode == "daily":
         d = today - timedelta(days=1)
         return d, d
+    
+    if mode == "daily_yesterday":
+        yesterday = today - timedelta(days=1)
+        return yesterday, yesterday
 
     if mode == "weekly":
         end = today - timedelta(days=1)
