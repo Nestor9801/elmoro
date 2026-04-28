@@ -18,7 +18,7 @@ Este proyecto permite:
 
 ## 🏗️ Arquitectura
 
-Pipeline ETL que integra datos de Elmoro (EOS Zetus) y Google Forms (merma) mediante autenticación automatizada y consumo de APIs.
+Plataforma de datos y pipeline ETL que integra datos de Elmoro (EOS Zetus) y Google Forms (merma) mediante autenticación automatizada y consumo de APIs.
 Los datos se limpian, transforman y almacenan en PostgreSQL como fuente única de verdad.
 Finalmente, se visualizan en Metabase (Docker) para análisis y toma de decisiones.
 
