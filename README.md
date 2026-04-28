@@ -287,3 +287,277 @@ Este proyecto combina:
 Diseñado para escenarios donde no existe API pública oficial.
 
 ---
+
+# ▶️ Cómo ejecutar el proyecto (Step by Step)
+
+## 🧩 1. Clonar el repositorio
+
+```bash
+git clone https://github.com/tu-usuario/elmoro.git
+cd elmoro
+```
+
+---
+
+## 🐍 2. Crear entorno virtual
+
+```bash
+python -m venv .venv
+```
+
+### Activar entorno
+
+**Windows (PowerShell):**
+
+```bash
+.venv\Scripts\activate
+```
+
+**Mac/Linux:**
+
+```bash
+source .venv/bin/activate
+```
+
+---
+
+## 📦 3. Instalar dependencias
+
+Si tienes `requirements.txt`:
+
+```bash
+pip install -r requirements.txt
+```
+
+Si no, mínimo necesitas:
+
+```bash
+pip install requests psycopg2-binary playwright pandas
+playwright install
+```
+
+---
+
+## ⚙️ 4. Configurar credenciales
+
+Editar archivo:
+
+```bash
+config.py
+```
+
+Configurar:
+
+* Usuario y contraseña del sistema Elmoro
+* Conexión a PostgreSQL
+
+Ejemplo:
+
+```python
+API_USER = "TU_USUARIO"
+API_PASSWORD = "TU_PASSWORD"
+
+PG_CONFIG = {
+    "host": "localhost",
+    "dbname": "elmoro",
+    "user": "postgres",
+    "password": "tu_password",
+}
+```
+
+---
+
+## 🗄️ 5. Preparar base de datos
+
+Asegúrate de tener PostgreSQL corriendo y crear la base:
+
+```sql
+CREATE DATABASE elmoro;
+```
+
+Ejecutar tu script:
+
+```bash
+SQL/001_schema_consumos.sql
+```
+
+---
+
+## 🔐 6. Generar sesión (LOGIN)
+
+Este paso es clave (solo la primera vez o cuando expire sesión):
+
+```bash
+python auth_playwright.py
+```
+
+👉 Esto va a:
+
+* Abrir navegador
+* Hacer login automático
+* Guardar cookies en:
+
+```bash
+playwright_state.json
+```
+
+---
+
+## 🚀 7. Ejecutar el ETL
+
+### 🔹 Opción 1: Diario
+
+```bash
+python main.py --mode daily
+```
+
+---
+
+### 🔹 Opción 2: Semanal
+
+```bash
+python main.py --mode weekly
+```
+
+---
+
+### 🔹 Opción 3: Mensual
+
+```bash
+python main.py --mode monthly
+```
+
+---
+
+### 🔹 Opción 4: Rango personalizado
+
+```bash
+python main.py \
+  --mode custom \
+  --fecha-inicio 2024/01/01 \
+  --fecha-fin 2024/01/10
+```
+
+---
+
+### 🔹 Opción 5: Catálogos
+
+```bash
+python main.py --mode catalogs
+```
+
+---
+
+## 📊 8. Verificar ejecución
+
+Durante ejecución verás logs como:
+
+```bash
+STATUS: 200
+CONTENT-TYPE: application/json
+```
+
+Y en base de datos:
+
+```sql
+SELECT * FROM consumos;
+```
+
+---
+
+## 🧠 9. Qué pasa internamente
+
+```text
+1. Carga cookies (o hace login)
+2. Construye sesión HTTP
+3. Itera fechas
+4. Llama endpoints
+5. Normaliza datos
+6. Inserta en PostgreSQL
+7. Guarda checkpoint
+```
+
+---
+
+## ⚠️ Problemas comunes
+
+### ❌ Error: "No existe playwright_state.json"
+
+👉 Solución:
+
+```bash
+python auth_playwright.py
+```
+
+---
+
+### ❌ Error de login
+
+* Verifica usuario/contraseña en `config.py`
+* Revisa si cambió el HTML del login
+
+---
+
+### ❌ Error DB
+
+* Verifica PostgreSQL corriendo
+* Credenciales correctas
+* Tablas creadas
+
+---
+
+### ❌ Sesión expirada
+
+👉 Simple:
+
+```bash
+python auth_playwright.py
+```
+
+---
+
+## ⚡ Automatización (Opcional)
+
+Puedes usar los `.bat` que ya tienes:
+
+```bash
+run_daily_minus_1.bat
+run_weekly.bat
+run_monthly.bat
+```
+
+O programarlo con:
+
+* Task Scheduler (Windows)
+* Cron (Linux)
+
+---
+
+## ✅ Checklist rápido
+
+* [ ] Entorno virtual activo
+* [ ] Dependencias instaladas
+* [ ] DB creada
+* [ ] Configuración correcta
+* [ ] Sesión generada
+* [ ] Script ejecutado
+
+---
+
+## 🧑‍💻 Tip PRO
+
+Primera ejecución:
+
+```bash
+python auth_playwright.py
+python main.py --mode daily
+```
+
+Después ya puedes correr directo:
+
+```bash
+python main.py --mode daily
+```
+
+---
+
