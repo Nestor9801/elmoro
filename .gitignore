@@ -10,6 +10,8 @@ playwright_state.json
 # archivos sensibles
 config.py
 config.local.py
+credentials/
+*.json
 
 # logs
 *.log
