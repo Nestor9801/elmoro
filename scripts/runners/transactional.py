@@ -13,7 +13,6 @@ from date_ranges import iter_days
 from db import (
     insert_generic,
     checkpoint_success,
-    checkpoint_start,
     checkpoint_finish,
     checkpoint_fail,
 )
@@ -40,7 +39,6 @@ def process_tabla_cuentas_range(endpoint, session, fecha_inicio, fecha_fin):
                 log(f"{endpoint_name} | {table_name} | fecha {fecha} | ya procesada, se omite")
                 continue
 
-            checkpoint_start(endpoint_name, table_name, fecha)
 
             payload = build_tabla_cuentas_payload_for_day(fecha)
             response_json = fetch_endpoint(endpoint["url"], payload, session)

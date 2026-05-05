@@ -131,33 +131,35 @@ def checkpoint_start(endpoint_name, table_name, fecha):
 
 def checkpoint_finish(endpoint_name, table_name, fecha, rows_api, rows_db):
     sql = """
-    UPDATE etl_checkpoint
-    SET status = 'SUCCESS',
-        rows_api = %s,
-        rows_db = %s,
+    INSERT INTO etl_checkpoint (
+        endpoint_name, table_name, fecha, status, rows_api, rows_db,
+        started_at, finished_at, error_message
+    )
+    VALUES (%s, %s, %s, 'SUCCESS', %s, %s, NOW(), NOW(), NULL)
+    ON CONFLICT (endpoint_name, table_name, fecha) DO UPDATE SET
+        status = 'SUCCESS',
+        rows_api = EXCLUDED.rows_api,
+        rows_db = EXCLUDED.rows_db,
         finished_at = NOW(),
         error_message = NULL
-    WHERE endpoint_name = %s
-      AND table_name = %s
-      AND fecha = %s
     """
-
     with get_connection() as conn:
         with conn.cursor() as cur:
-            cur.execute(sql, (rows_api, rows_db, endpoint_name, table_name, fecha))
+            cur.execute(sql, (endpoint_name, table_name, fecha, rows_api, rows_db))
 
 
 def checkpoint_fail(endpoint_name, table_name, fecha, error_message):
     sql = """
-    UPDATE etl_checkpoint
-    SET status = 'FAILED',
+    INSERT INTO etl_checkpoint (
+        endpoint_name, table_name, fecha, status, error_message,
+        started_at, finished_at
+    )
+    VALUES (%s, %s, %s, 'FAILED', %s, NOW(), NOW())
+    ON CONFLICT (endpoint_name, table_name, fecha) DO UPDATE SET
+        status = 'FAILED',
         finished_at = NOW(),
-        error_message = %s
-    WHERE endpoint_name = %s
-      AND table_name = %s
-      AND fecha = %s
+        error_message = EXCLUDED.error_message
     """
-
     with get_connection() as conn:
         with conn.cursor() as cur:
-            cur.execute(sql, (str(error_message), endpoint_name, table_name, fecha))
+            cur.execute(sql, (endpoint_name, table_name, fecha, str(error_message)))
