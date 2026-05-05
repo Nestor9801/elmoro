@@ -34,26 +34,19 @@ CREATE INDEX IF NOT EXISTS idx_consumos_abr_suc ON consumos(abr_suc);
 CREATE INDEX IF NOT EXISTS idx_consumos_branch_id ON consumos(branch_id);
 
 
-def ensure_checkpoint_table():
-    sql = """
-    CREATE TABLE IF NOT EXISTS etl_checkpoint (
-        id BIGSERIAL PRIMARY KEY,
-        endpoint_name TEXT NOT NULL,
-        table_name TEXT,
-        fecha DATE NOT NULL,
-        status TEXT NOT NULL,
-        rows_api INTEGER DEFAULT 0,
-        rows_db INTEGER DEFAULT 0,
-        error_message TEXT,
-        started_at TIMESTAMP DEFAULT NOW(),
-        finished_at TIMESTAMP,
-        UNIQUE(endpoint_name, table_name, fecha)
-    );
-    """
-    with get_connection() as conn:
-        with conn.cursor() as cur:
-            cur.execute(sql)
-
+CREATE TABLE IF NOT EXISTS etl_checkpoint (
+    id BIGSERIAL PRIMARY KEY,
+    endpoint_name TEXT NOT NULL,
+    table_name TEXT,
+    fecha DATE NOT NULL,
+    status TEXT NOT NULL,
+    rows_api INTEGER DEFAULT 0,
+    rows_db INTEGER DEFAULT 0,
+    error_message TEXT,
+    started_at TIMESTAMP DEFAULT NOW(),
+    finished_at TIMESTAMP,
+    UNIQUE(endpoint_name, table_name, fecha)
+);
 
 CREATE TABLE IF NOT EXISTS cortes_dia (
     id_crt               VARCHAR(30) PRIMARY KEY,
