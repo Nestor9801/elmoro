@@ -1,3 +1,5 @@
+CREATE DATABASE IF NOT EXISTS elmoro;
+
 CREATE TABLE IF NOT EXISTS consumos (
     id_c         VARCHAR(20) PRIMARY KEY,
     folio_c      INTEGER,
@@ -26,9 +28,25 @@ CREATE TABLE IF NOT EXISTS consumos (
     loaded_at    TIMESTAMP DEFAULT NOW()
 );
 
+
 CREATE INDEX IF NOT EXISTS idx_consumos_fecha_c ON consumos(fecha_c);
 CREATE INDEX IF NOT EXISTS idx_consumos_abr_suc ON consumos(abr_suc);
 CREATE INDEX IF NOT EXISTS idx_consumos_branch_id ON consumos(branch_id);
+
+
+CREATE TABLE IF NOT EXISTS etl_checkpoint (
+    id BIGSERIAL PRIMARY KEY,
+    endpoint_name TEXT NOT NULL,
+    table_name TEXT,
+    fecha DATE NOT NULL,
+    status TEXT NOT NULL,
+    rows_api INTEGER DEFAULT 0,
+    rows_db INTEGER DEFAULT 0,
+    error_message TEXT,
+    started_at TIMESTAMP DEFAULT NOW(),
+    finished_at TIMESTAMP,
+    UNIQUE(endpoint_name, table_name, fecha)
+);
 
 CREATE TABLE IF NOT EXISTS cortes_dia (
     id_crt               VARCHAR(30) PRIMARY KEY,
@@ -260,15 +278,3 @@ CREATE TABLE sucursales_metricas (
 );
 
 
-CREATE TABLE IF NOT EXISTS etl_checkpoint (
-    id BIGSERIAL PRIMARY KEY,
-    endpoint_name TEXT NOT NULL,
-    fecha DATE NOT NULL,
-    status TEXT NOT NULL,
-    rows_api INTEGER DEFAULT 0,
-    rows_db INTEGER DEFAULT 0,
-    error_message TEXT,
-    started_at TIMESTAMP DEFAULT NOW(),
-    finished_at TIMESTAMP,
-    UNIQUE(endpoint_name, fecha)
-);
