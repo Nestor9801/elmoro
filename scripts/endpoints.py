@@ -1,8 +1,8 @@
 ENDPOINTS_TRANSACCIONALES = [
     {
-        "name": "consumos",
+        "name": "transactional",
         "url": "https://eos.zetus.mx/elmoro/ventas@tabla_cuentas&axis=",
-        "table": "consumos",
+        "table": "transactional",
         "conflict_key": "id_c",
         "type": "tabla_cuentas_range",
         "load_mode": "append_upsert",
